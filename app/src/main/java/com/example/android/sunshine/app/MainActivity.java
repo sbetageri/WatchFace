@@ -15,14 +15,11 @@
  */
 package com.example.android.sunshine.app;
 
-import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.ActivityOptionsCompat;
 import android.support.v4.util.Pair;
@@ -36,17 +33,12 @@ import android.view.View;
 import com.example.android.sunshine.app.data.WeatherContract;
 import com.example.android.sunshine.app.gcm.RegistrationIntentService;
 import com.example.android.sunshine.app.sync.SunshineSyncAdapter;
+import com.example.android.sunshine.app.sync.WatchUtility;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.ResultCallback;
-import com.google.android.gms.wearable.DataApi;
-import com.google.android.gms.wearable.PutDataMapRequest;
-import com.google.android.gms.wearable.PutDataRequest;
 import com.google.android.gms.wearable.Wearable;
 
-import static com.example.android.sunshine.app.sync.SunshineSyncAdapter.TEMP_HIGH;
-import static com.example.android.sunshine.app.sync.SunshineSyncAdapter.TEMP_LOW;
 
 public class MainActivity extends AppCompatActivity implements ForecastFragment.Callback,
         GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener{
@@ -55,18 +47,6 @@ public class MainActivity extends AppCompatActivity implements ForecastFragment.
     private static final String DETAILFRAGMENT_TAG = "DFTAG";
     private final static int PLAY_SERVICES_RESOLUTION_REQUEST = 9000;
     public static final String SENT_TOKEN_TO_SERVER = "sentTokenToServer";
-
-    // these indices must match the projection
-    private static final int INDEX_MAX_TEMP = 1;
-    private static final int INDEX_MIN_TEMP = 2;
-
-    private static final String[] NOTIFY_WEATHER_PROJECTION = new String[] {
-            WeatherContract.WeatherEntry.COLUMN_WEATHER_ID,
-            WeatherContract.WeatherEntry.COLUMN_MAX_TEMP,
-            WeatherContract.WeatherEntry.COLUMN_MIN_TEMP,
-            WeatherContract.WeatherEntry.COLUMN_SHORT_DESC
-    };
-
 
     private boolean mTwoPane;
     private String mLocation;
@@ -85,51 +65,6 @@ public class MainActivity extends AppCompatActivity implements ForecastFragment.
     @Override
     public void onConnectionFailed(ConnectionResult connectionResult) {
 
-    }
-
-    private void sendDataToWatch(String high, String low) {
-        mGoogleApiClient.connect();
-        PutDataMapRequest putDataMapRequest = PutDataMapRequest.create("/forecast");
-        putDataMapRequest.getDataMap().putString(TEMP_HIGH, high);
-        putDataMapRequest.getDataMap().putString(TEMP_LOW, low);
-        String milli = Long.toString(System.currentTimeMillis());
-        putDataMapRequest.getDataMap().putString("time", milli);
-        Log.e(LOG_TAG, "time stamp : " + milli);
-        Log.e(LOG_TAG, "high : " + high);
-        Log.e(LOG_TAG, "low : " + low);
-        PutDataRequest putDataRequest = putDataMapRequest.asPutDataRequest().setUrgent();
-        Wearable.DataApi.putDataItem(mGoogleApiClient, putDataRequest)
-                .setResultCallback(new ResultCallback<DataApi.DataItemResult>() {
-                    @Override
-                    public void onResult(@NonNull DataApi.DataItemResult dataItemResult) {
-                        if(dataItemResult.getStatus().isSuccess()) {
-                            Log.e(LOG_TAG, "successfully sent data to watch");
-                        } else {
-                            Log.e(LOG_TAG, "failure to send data to watch");
-                        }
-                    }
-                });
-    }
-
-    private void prepAndSendDataToWatch() {
-        Context context = this;
-        String locationQuery = Utility.getPreferredLocation(context);
-
-        Uri weatherUri = WeatherContract.WeatherEntry.buildWeatherLocationWithDate(locationQuery, System.currentTimeMillis());
-
-        // we'll query our contentProvider, as always
-        Cursor cursor = context.getContentResolver().query(weatherUri, NOTIFY_WEATHER_PROJECTION, null, null, null);
-
-        if (cursor.moveToFirst()) {
-            double high = cursor.getDouble(INDEX_MAX_TEMP);
-            double low = cursor.getDouble(INDEX_MIN_TEMP);
-
-            // put high and low in data item
-            String strHigh = Utility.formatTemperature(this, high);
-            String strLow = Utility.formatTemperature(this, low);
-            sendDataToWatch(strHigh, strLow);
-            Log.e(LOG_TAG, "sending data to watch");
-        }
     }
 
     @Override
@@ -239,7 +174,8 @@ public class MainActivity extends AppCompatActivity implements ForecastFragment.
             }
             mLocation = location;
         }
-        prepAndSendDataToWatch();
+        //prepAndSendDataToWatch();
+        WatchUtility.sendDataToWatch(this, mGoogleApiClient);
     }
 
     @Override

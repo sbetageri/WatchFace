@@ -21,6 +21,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -35,8 +36,6 @@ import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.WindowInsets;
 
-
-import com.google.android.gms.common.api.GoogleApiClient;
 
 import java.lang.ref.WeakReference;
 import java.util.Calendar;
@@ -62,9 +61,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
      * Handler message id for updating the time periodically in interactive mode.
      */
     private static final int MSG_UPDATE_TIME = 0;
-
-
-    private GoogleApiClient mGoogleApiClient;
 
     @Override
     public Engine onCreateEngine() {
@@ -98,6 +94,8 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         Paint mTextPaint;
         boolean mAmbient;
         Calendar mCalendar;
+        Bitmap mWeatherBitmapIcon = null;
+        int mWeatherId;
         final BroadcastReceiver mTimeZoneReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
@@ -250,21 +248,30 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             mCalendar.setTimeInMillis(now);
 
             String text = mAmbient
-                    ? String.format("%d:%02d", mCalendar.get(Calendar.HOUR),
+                    ? String.format("%d:%02d", mCalendar.get(Calendar.HOUR_OF_DAY),
                     mCalendar.get(Calendar.MINUTE))
-                    : String.format("%d:%02d:%02d", mCalendar.get(Calendar.HOUR),
+                    : String.format("%d:%02d:%02d", mCalendar.get(Calendar.HOUR_OF_DAY),
                     mCalendar.get(Calendar.MINUTE), mCalendar.get(Calendar.SECOND));
             canvas.drawText(text, mXOffset, mYOffset, mTextPaint);
-            mTextPaint.setTextSize(getResources().getDimension(R.dimen.digital_text_size_large));
-            WeatherDataSingleton obj = WeatherDataSingleton.getInstance();
-            Log.e(_TAG, "high " + obj.high);
-            Log.e(_TAG, "low " + obj.low);
-            mTextPaint.setTextSize(getResources().getDimension(R.dimen.digital_text_size_large));
-            canvas.drawText(obj.high, mXOffset, mYOffset + 40, mTextPaint);
-            mTextPaint.setTextSize(getResources().getDimension(R.dimen.digital_text_size_small));
-            canvas.drawText(obj.low, mXOffset + 100, mYOffset + 40, mTextPaint);
-            Log.e(_TAG, "low" + obj.low);
-            Log.e(_TAG, "high" + obj.high);
+
+            Log.e(_TAG, "hour of day : " + mCalendar.get(Calendar.HOUR_OF_DAY));
+            Log.e(_TAG, "hour : " + mCalendar.get(Calendar.HOUR));
+            if(!mAmbient) {
+                mTextPaint.setTextSize(getResources().getDimension(R.dimen.digital_text_size_large));
+                WeatherDataSingleton obj = WeatherDataSingleton.getInstance();
+                mTextPaint.setTextSize(getResources().getDimension(R.dimen.digital_text_size_large));
+                canvas.drawText(obj.high, mXOffset, mYOffset + 40, mTextPaint);
+                mTextPaint.setTextSize(getResources().getDimension(R.dimen.digital_text_size_small));
+                canvas.drawText(obj.low, mXOffset + 100, mYOffset + 40, mTextPaint);
+
+                if (mWeatherBitmapIcon == null || mWeatherId != obj.weatherId) {
+                    mWeatherBitmapIcon = obj.weatherIcon;
+                    mWeatherId = obj.weatherId;
+                }
+                if (mWeatherBitmapIcon != null) {
+                    canvas.drawBitmap(mWeatherBitmapIcon, mXOffset + 160, mYOffset - 40, null);
+                }
+            }
         }
 
         /**
